@@ -1,0 +1,73 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:		owfs2mqtt
+# Required-Start:
+# Required-Stop:
+# Default-Start:	2 3 4 5
+# Default-Stop:
+# Short-Description: Run engine
+### END INIT INFO
+
+APPDIR=/server/owfs2mqtt
+NODE=/usr/bin/node
+DESC="OWFS2MQTT"
+NAME="owfs2mqtt"
+forever=/usr/bin/forever
+PID=`pidof $NAME`
+LOG=/root/$NAME.log
+
+. /lib/lsb/init-functions
+
+d_start() {
+	cd $APPDIR
+	$forever start index.js >$LOG
+}
+
+d_stop() {
+	if [ "$PID" != "" ]; then
+		$forever stop -pid $PID >>$LOG
+	fi
+}
+
+d_status() {
+	if [ "$PID" != "" ]; then
+		echo "$NAME is running"
+	else
+		echo "$NAME is stopped"
+	fi
+}
+
+case "$1" in
+	start)
+		log_action_begin_msg "Starting $DESC" "$NAME"
+		cd $APPDIR
+		d_stop
+		d_start
+		log_action_end_msg $?
+		;;
+	stop)
+		log_action_begin_msg "Stopping $DESC" "$NAME"
+		cd $APPDIR
+		d_stop
+		log_action_end_msg $?
+		;;
+	restart|force-reload)
+		log_daemon_msg "Restarting $DESC" "$NAME"
+		cd $APPDIR
+		d_stop
+		d_start
+		log_end_msg $?
+		;;
+	status)
+		d_status
+		;;
+	show)
+		ls -l /mnt/1wire
+		;;
+	*)
+		echo "Usage: /etc/init.d/$NAME {start|stop|restart|force-reload|status}" >&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,217 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>jstree basic demos</title>
+	<style>
+		html {
+			margin: 0;
+			padding: 0;
+			font-size: 62.5%;
+		}
+
+		body {
+			max-width: 800px;
+			min-width: 300px;
+			margin: 0 auto;
+			padding: 20px 10px;
+			font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+			font-size: 14px;
+			color: #c8c8c8;
+			background-color: #272b30;
+		}
+
+		h1 {
+			font-size: 24px;
+			font-weight: 200;
+		}
+
+		h2 {
+			font-size: 20px;
+			font-weight: 200;
+		}
+		th {
+			font-size: 18px;
+			font-weight:200;
+		}
+
+		.demo {
+			overflow: auto;
+			border: 1px solid silver;
+			min-height: 100px;
+		}
+
+		.left {
+			text-align: left;
+			line-break: auto;
+		}
+
+		.right {
+			text-align: right;
+		}
+
+		.inp {
+			width: 100%;
+		}
+
+		.tab {
+			width: 100%;
+		}
+
+		.err {
+			color: red;
+			text-align: left;
+		}
+
+		button {
+			width: 100px;
+		}
+	</style>
+	<link rel="stylesheet" href="css/themes/default/style.min.css" />
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+	<script src="js/jstree.min.js"></script>
+	<script type="text/javascript" src="table.js"></script>
+	<script>
+		if (location.search != "") document.location = "/";	//	clear url parameters
+
+		function clickAdd() {
+			if ($("#item").val() == "") { alert("Item not selected!"); return; }
+			if ($("#topic").val() == "") { alert("topic must be filled in!"); return; }
+			if ($("#descr").val() == "") { alert("Description must be filled in!"); return; }
+			if ($("#type option:selected").text() == "--select--") { alert("Select Type!"); return; }
+			var s = "?cmd=add&descr=" + $("#descr").val();
+			s += "&item=" + $("#item").val();
+			s += "&topic=" + $("#topic").val();
+			s += "&type=" + $("#type option:selected").text();
+			document.location = s;
+		}
+
+		function clickDelete(topic) {
+			if (confirm("Are you sure?")) document.location = "?cmd=delete&topic=" + topic;
+		}
+
+		function clickRefresh() {
+			document.location = "/?cmd=clear";
+		}
+
+		function clickMQTT() {
+			if ($("#mqtturl").val() == "") { alert("MQTT Broker url missing!"); return; }
+			document.location = "/?cmd=mqtt&mqtturl=" + $("#mqtturl").val();
+		}
+
+		function clickDir() {
+			if ($("#owdir").val() == "") { alert("OWFS directory missing!"); return; }
+			document.location = "/?cmd=dir&owdir=" + $("#owdir").val();
+		}
+
+		function clickField(index) {
+			$("#item").val(table.data[index].item)
+			$("#topic").val(table.data[index].topic)
+			$("#descr").val(table.data[index].descr)
+			$('#type option').filter(function () {
+				return ($(this).text() == table.data[index].type); //To select Blue
+			}).prop('selected', true);
+		}
+
+		$(function () {
+			if (table.errtext != "") alert(table.errtext);
+			$("#mqtturl").val(table.mqtturl)
+			$("#mqttport").val(table.mqttport)
+			$("#owdir").val(table.dir)
+			$("#item").val(table.item)
+			$("#topic").val(table.topic)
+			$("#descr").val(table.descr)
+
+			var opt = "";
+			for (o in table.subscriptions) opt += ("<option>" + o + "</option>");
+			$("#subscriptions").html(opt);
+			var tab = "";
+			var ii = 0;
+			for (x in table.data) {
+				tab += ("<tr>");
+				tab += ("<td><img title=\"Edit fields\" width=\"24\" src=\"images/pencil-128.png\" onclick='clickField(\"" + x + "\");'  />");
+				tab += ("<td>" + table.data[x].item + "</td>");
+				tab += ("<td>" + table.data[x].topic + "</td>");
+				tab += ("<td>" + table.data[x].descr + "</td>");
+				tab += ("<td>" + table.data[x].type + "</td>");
+				//tab += ("<td><button style=\"float:right\" onclick='clickField(\"" + x + "\");' >Edit</button></td>");
+				tab += ("<td><button style=\"float:right\" onclick='clickDelete(\"" + x + "\");' >Delete</button></td>");
+				tab += ("</tr>");
+				ii++;
+			}
+			$("#tab").html(tab);
+			$('#evts_button').on("click", function () {
+				var instance = $('#evts').jstree(true);
+				instance.deselect_all();
+				instance.select_node('1');
+			});
+			$('#evts')
+				.on("changed.jstree", function (e, data) {
+					if (data.selected.length) {
+						var node = data.instance.get_node(data.selected[0]);
+						if (node.original.type != "f")
+							//alert("Select a 'file' - not a 'folder'");
+							data.instance.toggle_node(data.node);
+						else {
+							var l = table.dir.length;
+							var item = node.id.toString().substring(l);
+							$("#item").val(item);
+							$("#evts").jstree('close_all');
+						}
+					}
+				})
+				.jstree({
+					'core': {
+						'data': {
+							"url": "/root.json",
+							"data": function (node) {
+								return { "id": node.id };
+							}
+						}
+					}
+				});
+
+		})
+	</script>
+</head>
+<body>
+	<h1>Onewire - MQTT gateway</h1>
+	<h2>Configuration</h2>
+	<table>
+		<tr><th class="left">MQTT Broker URL:</th><td><input type="text" id="mqtturl" /></td><td><button onclick="clickMQTT();">Update</button></td></tr>
+		<tr><th class="left">Onewire&nbsp;directory:&nbsp;</th><td><input type="text" id="owdir" /></td><td><button onclick="clickDir();">Update</button></td></tr>
+		<tr><th class="left">Subscriptions:(read&nbsp;only)</th><td class="left"><select style="width:100%" id="subscriptions"><option>No subscriptions</option><option></option></select></td></tr>
+	</table>
+	<h2>Onewire Devices:</h2>
+	<table>
+		<tr>
+			<td>&nbsp;</td>
+			<th class="left">Item</th>
+			<th class="left">Topic</th>
+			<th class="left">Description</th>
+			<th>Type</th>
+		</tr>
+		<tbody id="tab"></tbody>
+		<tr>
+			<td>
+				<img title="Clear fields" width="24" src="images/delete.png" onclick="clickRefresh();" />
+			</td>
+			<td><input type="text" id="item" class="inp" value="" /></td>
+			<td><input type="text" id="topic" class="inp" value="" /></td>
+			<td><input type="text" id="descr" class="inp" value="" /></td>
+			<td>
+				<select id="type" class="sel">
+					<option>--select--</option>
+					<option>sensor</option>
+					<option>switch</option>
+				</select>
+			</td>
+			<td>
+				<button style="float:right" onclick="clickAdd();">Add</button>
+			</td>
+		</tr>
+		<tr><td id="evts" class="dirlist" colspan="4"></td><td></td></tr>
+	</table>
+	<div id="tab"></div>
+</body>
+</html>
